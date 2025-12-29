@@ -90,13 +90,22 @@ function assignCategories(participants, categories) {
 }
 
 // Email transporter (configure with your email service)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-password'
+const createEmailTransporter = () => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('Email credentials not configured. Email sending will be disabled.');
+    return null;
   }
-});
+  
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+};
+
+const transporter = createEmailTransporter();
 
 // API Routes
 
@@ -230,6 +239,13 @@ app.post('/api/send-emails', async (req, res) => {
     return res.status(400).json({ error: 'Raffle ID is required' });
   }
 
+  if (!transporter) {
+    return res.status(503).json({ 
+      error: 'Email service not configured', 
+      details: 'Please configure EMAIL_USER and EMAIL_PASS environment variables' 
+    });
+  }
+
   db.all('SELECT * FROM participants WHERE raffle_id = ?', [raffleId], async (err, participants) => {
     if (err) {
       return res.status(500).json({ error: 'Error fetching participants' });
@@ -237,7 +253,7 @@ app.post('/api/send-emails', async (req, res) => {
 
     const emailPromises = participants.map(participant => {
       const mailOptions = {
-        from: process.env.EMAIL_USER || 'your-email@gmail.com',
+        from: process.env.EMAIL_USER,
         to: participant.email,
         subject: 'Your Raffle Result!',
         html: `
