@@ -49,7 +49,7 @@ function AccessResult() {
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-xl font-mono font-bold tracking-wider focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="XXXX-XXXX"
+                placeholder="XXXXXXXX"
                 maxLength="8"
                 required
               />

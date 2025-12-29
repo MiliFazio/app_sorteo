@@ -47,9 +47,9 @@ function CreateRaffle() {
     setLoading(true);
 
     // Validate inputs
-    const validParticipants = participants.filter(p => p.name.trim() !== '').map(p => ({
+    const validParticipants = participants.filter(p => p.name.trim() !== '').map((p, index) => ({
       name: p.name,
-      email: `${p.name.toLowerCase().replace(/\s+/g, '')}@raffle.local`
+      email: `${p.name.toLowerCase().replace(/\s+/g, '')}.${index}.${Date.now()}@raffle.local`
     }));
     const validCategories = categories.filter(c => c.trim() !== '');
 

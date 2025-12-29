@@ -60,12 +60,25 @@ function initializeDatabase() {
 }
 
 // Generate unique access code
-function generateAccessCode() {
+function generateAccessCode(existingCodes = []) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  let code;
+  let attempts = 0;
+  const maxAttempts = 100;
+  
+  do {
+    code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    attempts++;
+  } while (existingCodes.includes(code) && attempts < maxAttempts);
+  
+  if (attempts >= maxAttempts) {
+    // Fallback to timestamp-based code if we can't generate unique random code
+    code = Date.now().toString(36).toUpperCase().padStart(8, '0').slice(-8);
   }
+  
   return code;
 }
 
@@ -106,47 +119,63 @@ app.post('/api/raffles', async (req, res) => {
 
       const raffleId = this.lastID;
 
-      // Insert categories
-      const categoryStmt = db.prepare('INSERT INTO categories (raffle_id, name) VALUES (?, ?)');
-      categories.forEach(category => {
-        categoryStmt.run(raffleId, category);
-      });
-      categoryStmt.finalize();
+      // Use transaction for atomicity
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
 
-      // Assign categories to participants
-      const assignments = assignCategories(participants, categories);
+        try {
+          // Insert categories
+          const categoryStmt = db.prepare('INSERT INTO categories (raffle_id, name) VALUES (?, ?)');
+          categories.forEach(category => {
+            categoryStmt.run(raffleId, category);
+          });
+          categoryStmt.finalize();
 
-      // Insert participants with access codes
-      const participantStmt = db.prepare(
-        'INSERT INTO participants (raffle_id, name, email, access_code, assigned_category) VALUES (?, ?, ?, ?, ?)'
-      );
+          // Assign categories to participants
+          const assignments = assignCategories(participants, categories);
 
-      const participantData = [];
-      for (const participant of participants) {
-        const accessCode = generateAccessCode();
-        const assignedCategory = assignments[participant.name];
-        
-        participantStmt.run(
-          raffleId,
-          participant.name,
-          participant.email,
-          accessCode,
-          assignedCategory
-        );
+          // Insert participants with access codes
+          const participantStmt = db.prepare(
+            'INSERT INTO participants (raffle_id, name, email, access_code, assigned_category) VALUES (?, ?, ?, ?, ?)'
+          );
 
-        participantData.push({
-          name: participant.name,
-          email: participant.email,
-          accessCode,
-          category: assignedCategory
-        });
-      }
-      participantStmt.finalize();
+          const participantData = [];
+          const usedCodes = [];
+          
+          for (const participant of participants) {
+            const accessCode = generateAccessCode(usedCodes);
+            usedCodes.push(accessCode);
+            const assignedCategory = assignments[participant.name];
+            
+            participantStmt.run(
+              raffleId,
+              participant.name,
+              participant.email,
+              accessCode,
+              assignedCategory
+            );
 
-      res.json({
-        raffleId,
-        message: 'Raffle created successfully',
-        participants: participantData
+            participantData.push({
+              name: participant.name,
+              email: participant.email,
+              accessCode,
+              category: assignedCategory
+            });
+          }
+          participantStmt.finalize();
+
+          db.run('COMMIT');
+
+          res.json({
+            raffleId,
+            message: 'Raffle created successfully',
+            participants: participantData
+          });
+        } catch (error) {
+          db.run('ROLLBACK');
+          console.error('Error in transaction:', error);
+          return res.status(500).json({ error: 'Error creating raffle data' });
+        }
       });
     });
   } catch (error) {
