@@ -5,14 +5,14 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 function CreateRaffle() {
   const [raffleName, setRaffleName] = useState('');
-  const [participants, setParticipants] = useState([{ name: '', email: '' }]);
+  const [participants, setParticipants] = useState([{ name: '' }]);
   const [categories, setCategories] = useState(['']);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const addParticipant = () => {
-    setParticipants([...participants, { name: '', email: '' }]);
+    setParticipants([...participants, { name: '' }]);
   };
 
   const removeParticipant = (index) => {
@@ -20,9 +20,9 @@ function CreateRaffle() {
     setParticipants(updated);
   };
 
-  const updateParticipant = (index, field, value) => {
+  const updateParticipant = (index, value) => {
     const updated = [...participants];
-    updated[index][field] = value;
+    updated[index].name = value;
     setParticipants(updated);
   };
 
@@ -47,7 +47,10 @@ function CreateRaffle() {
     setLoading(true);
 
     // Validate inputs
-    const validParticipants = participants.filter(p => p.name && p.email);
+    const validParticipants = participants.filter(p => p.name.trim() !== '').map(p => ({
+      name: p.name,
+      email: `${p.name.toLowerCase().replace(/\s+/g, '')}@raffle.local`
+    }));
     const validCategories = categories.filter(c => c.trim() !== '');
 
     if (!raffleName || validParticipants.length === 0 || validCategories.length === 0) {
@@ -71,27 +74,9 @@ function CreateRaffle() {
     }
   };
 
-  const sendEmails = async () => {
-    if (!preview) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      await axios.post(`${API_URL}/api/send-emails`, {
-        raffleId: preview.raffleId,
-      });
-      alert('Emails sent successfully!');
-      setLoading(false);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Error sending emails');
-      setLoading(false);
-    }
-  };
-
   const resetForm = () => {
     setRaffleName('');
-    setParticipants([{ name: '', email: '' }]);
+    setParticipants([{ name: '' }]);
     setCategories(['']);
     setPreview(null);
     setError('');
@@ -106,7 +91,10 @@ function CreateRaffle() {
           </h2>
           
           <div className="mb-6">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Preview Results:</h3>
+            <h3 className="text-xl font-semibold mb-4 text-gray-700">Results:</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Share these access codes with participants so they can view their assigned category.
+            </p>
             <div className="space-y-3">
               {preview.participants.map((participant, index) => (
                 <div
@@ -116,13 +104,12 @@ function CreateRaffle() {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-lg text-gray-800">{participant.name}</p>
-                      <p className="text-sm text-gray-600">{participant.email}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-600">Category:</p>
                       <p className="text-lg font-bold text-purple-600">{participant.category}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Code: <span className="font-mono font-bold">{participant.accessCode}</span>
+                        Code: <span className="font-mono font-bold text-purple-700">{participant.accessCode}</span>
                       </p>
                     </div>
                   </div>
@@ -131,21 +118,12 @@ function CreateRaffle() {
             </div>
           </div>
 
-          <div className="flex space-x-4">
-            <button
-              onClick={sendEmails}
-              disabled={loading}
-              className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 transition"
-            >
-              {loading ? 'Sending...' : '📧 Send Emails to Participants'}
-            </button>
-            <button
-              onClick={resetForm}
-              className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-700 transition"
-            >
-              Create New Raffle
-            </button>
-          </div>
+          <button
+            onClick={resetForm}
+            className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-purple-700 transition"
+          >
+            Create New Raffle
+          </button>
 
           {error && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
@@ -200,16 +178,9 @@ function CreateRaffle() {
                   <input
                     type="text"
                     value={participant.name}
-                    onChange={(e) => updateParticipant(index, 'name', e.target.value)}
+                    onChange={(e) => updateParticipant(index, e.target.value)}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Name"
-                  />
-                  <input
-                    type="email"
-                    value={participant.email}
-                    onChange={(e) => updateParticipant(index, 'email', e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Email"
+                    placeholder="Participant name"
                   />
                   {participants.length > 1 && (
                     <button

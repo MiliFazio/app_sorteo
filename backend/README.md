@@ -9,23 +9,7 @@ This is the backend server for the raffle app.
 npm install
 ```
 
-2. Configure email (optional):
-Copy `.env.example` to `.env` and configure your email settings:
-```bash
-cp .env.example .env
-```
-
-Then edit `.env` with your email credentials:
-```
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASS=your-app-password
-```
-
-**Note:** For Gmail, you need to use an [App Password](https://support.google.com/accounts/answer/185833), not your regular password.
-
-**Email is optional:** The app works without email configuration. If not configured, users can still create raffles and access results via codes, but the "Send Emails" feature will be disabled.
-
-3. Run the server:
+2. Run the server:
 ```bash
 npm start
 ```
@@ -48,11 +32,6 @@ The server will run on port 3001 by default.
 
 - `GET /api/result/:code` - Get participant result by access code
   - Returns: Participant name, assigned category, and access code
-
-- `POST /api/send-emails` - Send emails to all participants
-  - Body: `{ raffleId: number }`
-  - Requires email configuration
-  - Returns: Success message or error
 
 ## Database
 

@@ -2,8 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
-const nodemailer = require('nodemailer');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -88,24 +86,6 @@ function assignCategories(participants, categories) {
   
   return assignments;
 }
-
-// Email transporter (configure with your email service)
-const createEmailTransporter = () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('Email credentials not configured. Email sending will be disabled.');
-    return null;
-  }
-  
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-};
-
-const transporter = createEmailTransporter();
 
 // API Routes
 
@@ -229,53 +209,6 @@ app.get('/api/result/:code', (req, res) => {
       });
     }
   );
-});
-
-// Send emails to participants
-app.post('/api/send-emails', async (req, res) => {
-  const { raffleId } = req.body;
-
-  if (!raffleId) {
-    return res.status(400).json({ error: 'Raffle ID is required' });
-  }
-
-  if (!transporter) {
-    return res.status(503).json({ 
-      error: 'Email service not configured', 
-      details: 'Please configure EMAIL_USER and EMAIL_PASS environment variables' 
-    });
-  }
-
-  db.all('SELECT * FROM participants WHERE raffle_id = ?', [raffleId], async (err, participants) => {
-    if (err) {
-      return res.status(500).json({ error: 'Error fetching participants' });
-    }
-
-    const emailPromises = participants.map(participant => {
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: participant.email,
-        subject: 'Your Raffle Result!',
-        html: `
-          <h2>Hello ${participant.name}!</h2>
-          <p>Your raffle has been completed!</p>
-          <p><strong>Your assigned category:</strong> ${participant.assigned_category}</p>
-          <p><strong>Your access code:</strong> ${participant.access_code}</p>
-          <p>You can view your result anytime using your access code.</p>
-        `
-      };
-
-      return transporter.sendMail(mailOptions);
-    });
-
-    try {
-      await Promise.all(emailPromises);
-      res.json({ message: 'Emails sent successfully' });
-    } catch (error) {
-      console.error('Error sending emails:', error);
-      res.status(500).json({ error: 'Error sending emails', details: error.message });
-    }
-  });
 });
 
 // Start server

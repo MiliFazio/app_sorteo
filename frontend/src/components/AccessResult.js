@@ -54,7 +54,7 @@ function AccessResult() {
                 required
               />
               <p className="text-sm text-gray-500 mt-2 text-center">
-                Enter the 8-character code you received via email
+                Enter the 8-character code you received from the raffle organizer
               </p>
             </div>
 
